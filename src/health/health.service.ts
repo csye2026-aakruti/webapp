@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { HealthCheck } from './health-check.entity';
 
 @Injectable()
 export class HealthService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(HealthCheck)
+    private readonly healthRepo: Repository<HealthCheck>,
+  ) {}
 
-  async checkDatabase(): Promise<boolean> {
+  async insertHealthCheck(): Promise<boolean> {
     try {
-      // Perform a simple query to check database connectivity
-      await this.dataSource.query('SELECT 1');
+      await this.healthRepo.insert({});
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
