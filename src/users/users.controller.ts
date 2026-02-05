@@ -8,6 +8,8 @@ import {
   Req,
   BadRequestException,
   Param,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -54,16 +56,19 @@ export class UsersController {
   // Update user information (self)
   @UseGuards(AuthGuard)
   @Put('self')
+  @HttpCode(HttpStatus.NO_CONTENT)   // 👈 THIS IS THE KEY LINE
   async updateSelf(
     @Req() req: Request,
     @Body() updateData: Partial<User>,
   ): Promise<void> {
-    const userId = req.user?.id; // Ensure `user` is optional and safely accessed
+    const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID not found in request');
     }
-
+  
     await this.usersService.update(userId, updateData);
+  
+    return; // 👈 explicitly return nothing
   }
 
  
