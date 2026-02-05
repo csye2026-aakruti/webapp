@@ -1,38 +1,46 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
-import { UsersService } from 'src/users/users.service';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request } from 'express';
+import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(
-    private jwtService: JwtService,
-    private usersService: UsersService,
-  ) {}
- 
+  constructor(private readonly usersService: UsersService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request);
-    if (!token) {
+    const req = context.switchToHttp().getRequest<Request>();
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
       throw new UnauthorizedException();
     }
+
+    const base64Credentials = authHeader.slice('Basic '.length).trim();
+    const decoded = Buffer.from(base64Credentials, 'base64').toString('utf8');
+
+    const i = decoded.indexOf(':');
+    if (i < 0) throw new UnauthorizedException();
+
+    const username = decoded.slice(0, i);
+    const password = decoded.slice(i + 1);
+    if (!username || !password) throw new UnauthorizedException();
+
     try {
-      const payload = await this.jwtService.verifyAsync(token);
-      const user = await this.usersService.findOne(payload.sub);
-      if (!user) {
-        throw new UnauthorizedException();
-      }
-      request['user'] = user;
+      const user = await this.usersService.findOneByUsernameWithPassword(username);
+
+      const ok = await bcrypt.compare(password, user.password);
+      if (!ok) throw new UnauthorizedException();
+
+      (req as any).user = { id: user.id };
+      return true;
     } catch {
+      // ✅ Hide whether user exists or not
       throw new UnauthorizedException();
     }
-    return true;
-  }
- 
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
   }
 }
- 
- 

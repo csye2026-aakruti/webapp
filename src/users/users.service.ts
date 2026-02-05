@@ -32,14 +32,24 @@ export class UsersService {
     // Create the new user
     const newUser = this.usersRepository.create({
       username,
-      password: hashedPassword,
+      password: hashedPassword,   // ✅ store bcrypt hash
       first_name,
       last_name,
       account_created: new Date(),
       account_updated: new Date(),
     });
-
-    return this.usersRepository.save(newUser);
+    
+    const saved = await this.usersRepository.save(newUser);
+    
+    // dont return password
+    return {
+      id: saved.id,
+      username: saved.username,
+      first_name: saved.first_name,
+      last_name: saved.last_name,
+      account_created: saved.account_created,
+      account_updated: saved.account_updated,
+    } as any;
   }
 
   // Fetch a user by ID
@@ -58,6 +68,14 @@ export class UsersService {
       throw new NotFoundException(`User with username ${username} not found`);
     }
     return user;
+  }
+
+  async findOneByUsernameWithPassword(username: string): Promise<User> {
+    const user = await this.usersRepository.findOneBy({ username });
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+    return user; // includes password hash from DB
   }
 
   // Update user information
