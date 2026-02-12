@@ -48,6 +48,21 @@ describe('WebApp E2E Tests', () => {
     expect(res.text ?? '').toBe('');
   });
 
+  it('PUT /healthz → 405', async () => {
+    const res = await supertest(server).put('/healthz').expect(405);
+    expect(res.text ?? '').toBe('');
+  });
+  
+  it('PATCH /healthz → 405', async () => {
+    const res = await supertest(server).patch('/healthz').expect(405);
+    expect(res.text ?? '').toBe('');
+  });
+  
+  it('DELETE /healthz → 405', async () => {
+    const res = await supertest(server).delete('/healthz').expect(405);
+    expect(res.text ?? '').toBe('');
+  });
+
   it('POST /v1/user → 201', async () => {
     const res = await supertest(server)
       .post('/v1/user')
@@ -127,6 +142,13 @@ describe('WebApp E2E Tests', () => {
     expect(res.body.password).toBeUndefined();
   });
 
+  it('PUT /v1/user/self without auth → 401', async () => {
+    await supertest(server)
+      .put('/v1/user/self')
+      .send({ first_name: 'NoAuth' })
+      .expect(401);
+  });
+
   it('PUT /v1/user/self → 204', async () => {
     const before = await supertest(server)
       .get('/v1/user/self')
@@ -159,3 +181,4 @@ describe('WebApp E2E Tests', () => {
       .expect(400);
   });
 });
+console.log(process.env.DB_NAME);
