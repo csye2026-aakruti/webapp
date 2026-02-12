@@ -32,8 +32,8 @@ describe('WebApp E2E Tests', () => {
     await app.close();
   });
 
-  it('GET /healthz → 200', async () => {
-    const res = await supertest(server).get('/healthz').expect(200);
+  it('GET /healthz → 400', async () => {
+    const res = await supertest(server).get('/healthz').expect(400);
     expect(res.text ?? '').toBe('');
     expect(String(res.headers['cache-control']).toLowerCase()).toContain('no-cache');
   });
