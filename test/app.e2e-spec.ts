@@ -4,7 +4,10 @@ import supertest from 'supertest';
 import * as dotenv from 'dotenv';
 import { AppModule } from '../src/app.module';
 
-dotenv.config({ path: '.env.test' });
+import fs from 'fs';
+if (fs.existsSync('.env.test')) {
+  dotenv.config({ path: '.env.test' });
+}
 
 describe('WebApp E2E Tests', () => {
   let app: INestApplication;
