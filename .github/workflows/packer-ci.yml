@@ -1,0 +1,37 @@
+name: Packer CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  packer-validate:
+    name: Packer Format and Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@main
+        with:
+          version: "1.11.0"
+
+      - name: Packer Init
+        run: packer init packer/aws-gcp.pkr.hcl
+
+      - name: Check Packer formatting
+        run: |
+          if ! packer fmt -check packer/aws-gcp.pkr.hcl; then
+            echo "ERROR: Packer template is not formatted correctly."
+            echo "Run 'packer fmt packer/aws-gcp.pkr.hcl' locally and commit the changes."
+            exit 1
+          fi
+
+      - name: Create dummy webapp.zip for validation
+        run: touch webapp.zip
+
+      - name: Validate Packer template
+        run: packer validate packer/aws-gcp.pkr.hcl
