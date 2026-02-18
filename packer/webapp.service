@@ -1,0 +1,20 @@
+[Unit]
+Description=CSYE6225 Cloud Native Web Application
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=csye6225
+Group=csye6225
+WorkingDirectory=/opt/csye6225
+EnvironmentFile=/opt/csye6225/.env
+ExecStart=/usr/bin/node /opt/csye6225/dist/main.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=webapp
+
+[Install]
+WantedBy=multi-user.target
