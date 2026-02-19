@@ -144,8 +144,8 @@ build {
       "sudo apt-get install -y unzip",
 
       # Create group and user csye6225 with no login shell
-      "sudo groupadd -f csye6225",
-      "id -u csye6225 &>/dev/null || sudo useradd -r -s /usr/sbin/nologin -g csye6225 csye6225",
+      "sudo groupadd --force csye6225",
+      "sudo useradd --system --no-create-home --shell /usr/sbin/nologin --gid csye6225 csye6225 || true",
 
       # Create app directory
       "sudo mkdir -p /opt/csye6225",
