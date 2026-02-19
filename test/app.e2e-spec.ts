@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import supertest from 'supertest';
 import * as dotenv from 'dotenv';
 import { AppModule } from '../src/app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 dotenv.config({ path: '.env.test' });
 
@@ -22,8 +23,12 @@ describe('WebApp E2E Tests', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-
+  
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }));
     await app.init();
     server = app.getHttpServer();
   });
@@ -179,6 +184,56 @@ describe('WebApp E2E Tests', () => {
       .set('Authorization', authHeader)
       .send({ username: 'hack@example.com' })
       .expect(400);
+  });
+
+  // ------------------------------------------------------------------ //
+  // GET /v1/metadata
+  // ------------------------------------------------------------------ //
+
+  it('GET /v1/metadata → 503 when not on cloud platform', async () => {
+    const res = await supertest(server).get('/v1/metadata').expect(503);
+    expect(res.body.error).toBeDefined();
+    expect(res.body.message).toBeDefined();
+    expect(res.headers['cache-control']).toContain('no-cache');
+    expect(res.headers['pragma']).toBe('no-cache');
+  });
+
+  it('POST /v1/metadata → 405', async () => {
+    const res = await supertest(server).post('/v1/metadata').expect(405);
+    expect(res.headers['cache-control']).toContain('no-cache');
+  });
+
+  it('PUT /v1/metadata → 405', async () => {
+    const res = await supertest(server).put('/v1/metadata').expect(405);
+    expect(res.headers['cache-control']).toContain('no-cache');
+  });
+
+  it('DELETE /v1/metadata → 405', async () => {
+    const res = await supertest(server).delete('/v1/metadata').expect(405);
+    expect(res.headers['cache-control']).toContain('no-cache');
+  });
+
+  it('PATCH /v1/metadata → 405', async () => {
+    const res = await supertest(server).patch('/v1/metadata').expect(405);
+    expect(res.headers['cache-control']).toContain('no-cache');
+  });
+
+  it('GET /v1/metadata with query params → 400', async () => {
+    const res = await supertest(server)
+      .get('/v1/metadata?foo=bar')
+      .expect(400);
+    expect(res.body.error).toBeDefined();
+    expect(res.headers['cache-control']).toContain('no-cache');
+  });
+
+  it('GET /v1/metadata with body → 400', async () => {
+    const res = await supertest(server)
+      .get('/v1/metadata')
+      .set('Content-Type', 'application/json')
+      .send({ foo: 'bar' })
+      .expect(400);
+    expect(res.body.error).toBeDefined();
+    expect(res.headers['cache-control']).toContain('no-cache');
   });
 });
 console.log(process.env.DB_NAME);
