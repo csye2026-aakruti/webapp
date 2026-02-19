@@ -146,6 +146,7 @@ build {
       # Create group and user csye6225 with no login shell
       "sudo groupadd --force csye6225",
       "sudo useradd --system --no-create-home --shell /usr/sbin/nologin --gid csye6225 csye6225 || true",
+
       # Create app directory
       "sudo mkdir -p /opt/csye6225",
 
