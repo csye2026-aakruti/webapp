@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import supertest from 'supertest';
 import * as dotenv from 'dotenv';
 import { AppModule } from '../src/app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 dotenv.config({ path: '.env.test' });
 
@@ -22,8 +23,12 @@ describe('WebApp E2E Tests', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-
+  
     app = moduleFixture.createNestApplication();
+    app.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }));
     await app.init();
     server = app.getHttpServer();
   });
