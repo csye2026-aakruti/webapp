@@ -50,7 +50,6 @@ variable "app_version" {
 # --------------------------------------------------------------------------- #
 
 source "amazon-ebs" "ubuntu" {
-  profile               = "dev"
   region                = var.aws_region
   ami_name              = "csye6225-webapp-${formatdate("YYYY-MM-DD-hh-mm-ss", timestamp())}"
   ami_description       = "Custom AMI for CSYE6225 web application"
