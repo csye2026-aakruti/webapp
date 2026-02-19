@@ -66,7 +66,7 @@ source "amazon-ebs" "ubuntu" {
       virtualization-type = "hvm"
     }
     most_recent = true
-    owners      = ["099720109477"] # Canonical (Ubuntu's official AWS account)
+    owners      = ["099720109477"] # Canonical's official AWS account
   }
 
   ssh_username = "ubuntu"
@@ -96,14 +96,10 @@ source "googlecompute" "ubuntu" {
   disk_size           = 20
   disk_type           = "pd-standard"
 
-  # Share image with DEMO project after build
   image_labels = {
     environment = "dev"
     course      = "csye6225"
   }
-
-  # Share image with DEMO project
-  image_project_id = var.gcp_dev_project_id
 }
 
 # --------------------------------------------------------------------------- #
@@ -169,6 +165,15 @@ build {
       "sudo chown root:root /etc/systemd/system/webapp.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl enable webapp"
+    ]
+  }
+
+  # Share GCP image with DEMO project after build
+  # Grants DEMO project's GCP APIs service account access to use the image
+  post-processor "shell-local" {
+    only = ["googlecompute.ubuntu"]
+    inline = [
+      "gcloud projects add-iam-policy-binding ${var.gcp_dev_project_id} --member=serviceAccount:$(gcloud projects describe ${var.gcp_demo_project_id} --format='value(projectNumber)')@cloudservices.gserviceaccount.com --role=roles/compute.imageUser"
     ]
   }
 }
