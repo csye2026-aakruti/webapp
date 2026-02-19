@@ -21,8 +21,8 @@ export interface MetadataResponse {
 export class MetadataService implements OnModuleInit {
   private readonly logger = new Logger(MetadataService.name);
   private platform: CloudPlatform = null;
+  private imdsv2Token: string | null = null;
 
-  // Detect platform once at startup and cache it
   async onModuleInit() {
     this.platform = await this.detectPlatform();
     this.logger.log(`Detected cloud platform: ${this.platform ?? 'none'}`);
@@ -32,8 +32,8 @@ export class MetadataService implements OnModuleInit {
     return this.platform;
   }
 
-  // Try GCP first, then AWS, with short timeouts
   private async detectPlatform(): Promise<CloudPlatform> {
+    // Try GCP first
     const isGcp = await this.probe(
       'metadata.google.internal',
       '/computeMetadata/v1/',
@@ -41,10 +41,51 @@ export class MetadataService implements OnModuleInit {
     );
     if (isGcp) return 'gcp';
 
+    // Try AWS IMDSv2 - get token first
+    try {
+      const token = await this.getImdsv2Token();
+      if (token) {
+        this.imdsv2Token = token;
+        return 'aws';
+      }
+    } catch {
+      // fall through
+    }
+
+    // Try AWS IMDSv1 as fallback
     const isAws = await this.probe('169.254.169.254', '/latest/meta-data/');
     if (isAws) return 'aws';
 
     return null;
+  }
+
+  // Get IMDSv2 token
+  private getImdsv2Token(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const req = http.request(
+        {
+          host: '169.254.169.254',
+          path: '/latest/api/token',
+          method: 'PUT',
+          headers: { 'X-aws-ec2-metadata-token-ttl-seconds': '21600' },
+          timeout: 2000,
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            if (res.statusCode === 200 && data) {
+              resolve(data.trim());
+            } else {
+              reject(new Error('IMDSv2 token request failed'));
+            }
+          });
+        },
+      );
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      req.end();
+    });
   }
 
   // HTTP probe with 2 second timeout
@@ -67,15 +108,21 @@ export class MetadataService implements OnModuleInit {
     });
   }
 
-  // Fetch a single metadata value as plain text
+  // Fetch metadata value - uses IMDSv2 token for AWS if available
   private fetchMetadata(
     host: string,
     path: string,
     headers: Record<string, string> = {},
   ): Promise<string> {
+    // Add IMDSv2 token for AWS requests
+    const finalHeaders = { ...headers };
+    if (host === '169.254.169.254' && this.imdsv2Token) {
+      finalHeaders['X-aws-ec2-metadata-token'] = this.imdsv2Token;
+    }
+
     return new Promise((resolve, reject) => {
       const req = http.request(
-        { host, path, method: 'GET', headers, timeout: 5000 },
+        { host, path, method: 'GET', headers: finalHeaders, timeout: 5000 },
         (res) => {
           let data = '';
           res.on('data', (chunk) => (data += chunk));
@@ -143,16 +190,11 @@ export class MetadataService implements OnModuleInit {
     const get = (path: string) => this.fetchMetadata(host, path, headers);
 
     const instance_id = await get('/computeMetadata/v1/instance/id');
-
-    // zone returns e.g. projects/123/zones/us-east1-b — we want just us-east1-b
     const zoneRaw = await get('/computeMetadata/v1/instance/zone');
     const region = zoneRaw.split('/').pop() ?? zoneRaw;
-
-    // machine-type returns e.g. projects/123/machineTypes/e2-medium — we want e2-medium
     const machineRaw = await get('/computeMetadata/v1/instance/machine-type');
     const machine_type = machineRaw.split('/').pop() ?? machineRaw;
 
-    // Get number of network interfaces
     const ifaceIndexes = await get('/computeMetadata/v1/instance/network-interfaces/');
     const indexes = ifaceIndexes.split('\n').map((i) => i.replace(/\/$/, '')).filter(Boolean);
 
@@ -160,8 +202,6 @@ export class MetadataService implements OnModuleInit {
       indexes.map(async (idx) => {
         const base = `/computeMetadata/v1/instance/network-interfaces/${idx}`;
         const private_ip = await get(`${base}/ip`);
-
-        // network returns full path — extract just the network name
         const networkRaw = await get(`${base}/network`);
         const network = networkRaw.split('/').pop() ?? networkRaw;
 
@@ -180,7 +220,7 @@ export class MetadataService implements OnModuleInit {
   }
 
   // ------------------------------------------------------------------ //
-  // Main entry point called by controller
+  // Main entry point
   // ------------------------------------------------------------------ //
 
   async getMetadata(): Promise<MetadataResponse> {
