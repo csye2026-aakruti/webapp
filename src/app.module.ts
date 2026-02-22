@@ -10,6 +10,7 @@ import { HealthService } from './health/health.service';
 import { HealthCheck } from './health/health-check.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MetadataModule } from './metadata/metadata.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MetadataModule } from './metadata/metadata.module';
     AuthModule,
     TypeOrmModule.forFeature([HealthCheck]),
     MetadataModule,
+    CoursesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, HealthService],
