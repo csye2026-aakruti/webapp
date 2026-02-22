@@ -50,8 +50,8 @@ import {
     // ------------------------------------------------------------------ //
     @Post()
     async create(
-      @Body(new ValidationPipe({ whitelist: true, transform: true }))
-      dto: CreateCourseDto,
+      @Req() req: express.Request,
+      @Body() rawBody: Record<string, any>,
       @Headers('content-type') contentType: string,
       @Res() res: express.Response,
     ) {
@@ -60,6 +60,21 @@ import {
         return res.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).json({
           error: 'Unsupported Media Type',
           message: 'Content-Type must be application/json',
+        });
+      }
+  
+      // Validate manually
+      const pipe = new ValidationPipe({ whitelist: true, transform: true });
+      let dto: CreateCourseDto;
+      try {
+        dto = await pipe.transform(rawBody, {
+          type: 'body',
+          metatype: CreateCourseDto,
+        });
+      } catch {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          error: 'Bad Request',
+          message: 'Validation failed',
         });
       }
   
