@@ -94,6 +94,8 @@ source "googlecompute" "ubuntu" {
   ssh_username        = "packer"
   disk_size           = 20
   disk_type           = "pd-standard"
+  omit_external_ip    = false
+  ssh_timeout         = "10m"
 
   image_labels = {
     environment = "dev"
