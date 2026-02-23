@@ -99,6 +99,10 @@ source "googlecompute" "ubuntu" {
     environment = "dev"
     course      = "csye6225"
   }
+  use_os_login = false
+  metadata = {
+    enable-oslogin = "FALSE"
+  }
 }
 
 # --------------------------------------------------------------------------- #
