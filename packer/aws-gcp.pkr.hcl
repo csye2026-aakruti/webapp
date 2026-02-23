@@ -85,18 +85,18 @@ source "amazon-ebs" "ubuntu" {
 # --------------------------------------------------------------------------- #
 
 source "googlecompute" "ubuntu" {
-  project_id          = var.gcp_dev_project_id
-  zone                = var.gcp_zone
-  image_name          = "csye6225-webapp-${formatdate("YYYY-MM-DD-hh-mm-ss", timestamp())}"
-  image_description   = "Custom GCP image for CSYE6225 web application"
-  machine_type        = "e2-medium"
-  source_image_family = "ubuntu-2404-lts-amd64"
-  ssh_username        = "packer"
-  disk_size           = 20
-  disk_type           = "pd-standard"
-  omit_external_ip    = false
-  ssh_timeout         = "10m"
-  network             = "default"
+  project_id        = var.gcp_dev_project_id
+  zone              = var.gcp_zone
+  image_name        = "csye6225-webapp-${formatdate("YYYY-MM-DD-hh-mm-ss", timestamp())}"
+  image_description = "Custom GCP image for CSYE6225 web application"
+  machine_type      = "e2-medium"
+  source_image      = "ubuntu-2404-noble-amd64-v20260218"
+  ssh_username      = "ubuntu"
+  disk_size         = 20
+  disk_type         = "pd-standard"
+  omit_external_ip  = false
+  ssh_timeout       = "10m"
+  network           = "default"
 
   image_labels = {
     environment = "dev"
