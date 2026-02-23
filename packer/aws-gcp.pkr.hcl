@@ -96,6 +96,7 @@ source "googlecompute" "ubuntu" {
   disk_type           = "pd-standard"
   omit_external_ip    = false
   ssh_timeout         = "10m"
+  network             = "default"
 
   image_labels = {
     environment = "dev"
