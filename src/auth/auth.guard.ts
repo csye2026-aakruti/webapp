@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import * as bcrypt from 'bcrypt';
@@ -30,17 +31,21 @@ export class AuthGuard implements CanActivate {
     const password = decoded.slice(i + 1);
     if (!username || !password) throw new UnauthorizedException();
 
+    let user: any;
     try {
-      const user = await this.usersService.findOneByUsernameWithPassword(username);
-
+      user = await this.usersService.findOneByUsernameWithPassword(username);
       const ok = await bcrypt.compare(password, user.password);
       if (!ok) throw new UnauthorizedException();
-
-      (req as any).user = { id: user.id };
-      return true;
     } catch {
-      // ✅ Hide whether user exists or not
       throw new UnauthorizedException();
     }
+
+    // Check verified AFTER auth succeeds - returns 403 not 401
+    if (!user.verified) {
+      throw new ForbiddenException();
+    }
+
+    (req as any).user = { id: user.id };
+    return true;
   }
 }

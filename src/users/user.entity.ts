@@ -22,4 +22,7 @@ export class User {
 
   @UpdateDateColumn({ type: 'timestamp' })
   account_updated: Date;
+
+  @Column({ default: true })
+  verified: boolean;
 }
