@@ -235,5 +235,297 @@ describe('WebApp E2E Tests', () => {
     expect(res.body.error).toBeDefined();
     expect(res.headers['cache-control']).toContain('no-cache');
   });
+
+  // ------------------------------------------------------------------ //
+  // GET /v1/courses — unauthenticated
+  // ------------------------------------------------------------------ //
+
+  it('GET /v1/courses without auth → 401', async () => {
+    await supertest(server).get('/v1/courses').expect(401);
+  });
+
+  it('POST /v1/courses without auth → 401', async () => {
+    await supertest(server).post('/v1/courses').expect(401);
+  });
+
+  // ------------------------------------------------------------------ //
+  // POST /v1/courses — create course
+  // ------------------------------------------------------------------ //
+
+  let courseId: string;
+  let courseNumber: string;
+
+  it('POST /v1/courses → 201', async () => {
+    const res = await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: `${Date.now()}`.slice(-6),
+        title: 'Cloud Computing',
+        credit_hours: 4,
+        classification: 'core',
+        description: 'Cloud native development',
+      })
+      .expect(201);
+
+    expect(res.body.id).toBeDefined();
+    expect(res.body.department_code).toBe('CSYE');
+    expect(res.body.number).toBeDefined();
+    expect(res.body.has_syllabus).toBe(false);
+    expect(res.body.date_created).toBeDefined();
+    expect(res.body.date_updated).toBeDefined();
+    expect(res.headers['location']).toContain('/v1/courses/');
+    courseId = res.body.id;
+    courseNumber = res.body.number;  
+  });
+
+  it('POST /v1/courses duplicate → 409', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: courseNumber,        
+        title: 'Cloud Computing Duplicate',
+        credit_hours: 4,
+        classification: 'core',
+      })
+      .expect(409);
+  });
+
+  it('POST /v1/courses invalid credit_hours → 400', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: '6226',
+        title: 'Test',
+        credit_hours: 0,
+        classification: 'core',
+      })
+      .expect(400);
+  });
+
+  it('POST /v1/courses credit_hours too high → 400', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: '6227',
+        title: 'Test',
+        credit_hours: 9,
+        classification: 'core',
+      })
+      .expect(400);
+  });
+
+  it('POST /v1/courses invalid department_code → 400', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'csye',
+        number: '6228',
+        title: 'Test',
+        credit_hours: 4,
+        classification: 'core',
+      })
+      .expect(400);
+  });
+
+  it('POST /v1/courses missing required field → 400', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: '6229',
+        credit_hours: 4,
+        classification: 'core',
+      })
+      .expect(400);
+  });
+
+  it('POST /v1/courses invalid classification → 400', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'CSYE',
+        number: '6230',
+        title: 'Test',
+        credit_hours: 4,
+        classification: 'invalid',
+      })
+      .expect(400);
+  });
+
+  it('POST /v1/courses wrong content-type → 415', async () => {
+    await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'text/plain')
+      .send('not json')
+      .expect(415);
+  });
+
+  // ------------------------------------------------------------------ //
+  // GET /v1/courses
+  // ------------------------------------------------------------------ //
+
+  it('GET /v1/courses → 200 with array', async () => {
+    const res = await supertest(server)
+      .get('/v1/courses')
+      .set('Authorization', authHeader)
+      .expect(200);
+
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  // ------------------------------------------------------------------ //
+  // GET /v1/courses/:id
+  // ------------------------------------------------------------------ //
+
+  it('GET /v1/courses/:id → 200', async () => {
+    const res = await supertest(server)
+      .get(`/v1/courses/${courseId}`)
+      .set('Authorization', authHeader)
+      .expect(200);
+
+    expect(res.body.id).toBe(courseId);
+    expect(res.body.department_code).toBe('CSYE');
+  });
+
+  it('GET /v1/courses/:id non-existent → 404', async () => {
+    await supertest(server)
+      .get('/v1/courses/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', authHeader)
+      .expect(404);
+  });
+
+  // ------------------------------------------------------------------ //
+  // PUT /v1/courses/:id
+  // ------------------------------------------------------------------ //
+
+  it('PUT /v1/courses/:id → 200', async () => {
+    const res = await supertest(server)
+      .put(`/v1/courses/${courseId}`)
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({ title: 'Updated Cloud Computing' })
+      .expect(200);
+
+    expect(res.body.title).toBe('Updated Cloud Computing');
+    expect(res.body.date_updated).toBeDefined();
+  });
+
+  it('PUT /v1/courses/:id immutable field → 400', async () => {
+    await supertest(server)
+      .put(`/v1/courses/${courseId}`)
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({ department_code: 'HACK' })
+      .expect(400);
+  });
+
+  it('PUT /v1/courses/:id empty body → 400', async () => {
+    await supertest(server)
+      .put(`/v1/courses/${courseId}`)
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({})
+      .expect(400);
+  });
+
+  it('PUT /v1/courses/:id non-existent → 404', async () => {
+    await supertest(server)
+      .put('/v1/courses/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({ title: 'Test' })
+      .expect(404);
+  });
+
+  // ------------------------------------------------------------------ //
+  // DELETE /v1/courses/:id
+  // ------------------------------------------------------------------ //
+
+  it('DELETE /v1/courses/:id non-existent → 404', async () => {
+    await supertest(server)
+      .delete('/v1/courses/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', authHeader)
+      .expect(404);
+  });
+
+  it('DELETE /v1/courses/:id → 204', async () => {
+    // Create a fresh course to delete
+    const res = await supertest(server)
+      .post('/v1/courses')
+      .set('Authorization', authHeader)
+      .set('Content-Type', 'application/json')
+      .send({
+        department_code: 'INFO',
+        number: '9999',
+        title: 'To Be Deleted',
+        credit_hours: 3,
+        classification: 'elective',
+      })
+      .expect(201);
+
+    await supertest(server)
+      .delete(`/v1/courses/${res.body.id}`)
+      .set('Authorization', authHeader)
+      .expect(204);
+  });
+
+  // ------------------------------------------------------------------ //
+  // Syllabus endpoints — without S3 (503 expected locally)
+  // ------------------------------------------------------------------ //
+
+  it('GET /v1/courses/:id/syllabus without auth → 401', async () => {
+    await supertest(server)
+      .get(`/v1/courses/${courseId}/syllabus`)
+      .expect(401);
+  });
+
+  it('GET /v1/courses/:id/syllabus no syllabus → 404', async () => {
+    await supertest(server)
+      .get(`/v1/courses/${courseId}/syllabus`)
+      .set('Authorization', authHeader)
+      .expect(404);
+  });
+
+  it('GET /v1/courses/non-existent/syllabus → 404', async () => {
+    await supertest(server)
+      .get('/v1/courses/00000000-0000-0000-0000-000000000000/syllabus')
+      .set('Authorization', authHeader)
+      .expect(404);
+  });
+
+  it('POST /v1/courses/:id/syllabus no file → 400', async () => {
+    await supertest(server)
+      .post(`/v1/courses/${courseId}/syllabus`)
+      .set('Authorization', authHeader)
+      .expect(400);
+  });
+
+  it('DELETE /v1/courses/:id/syllabus no syllabus → 404', async () => {
+    await supertest(server)
+      .delete(`/v1/courses/${courseId}/syllabus`)
+      .set('Authorization', authHeader)
+      .expect(404);
+  });
+
 });
 console.log(process.env.DB_NAME);

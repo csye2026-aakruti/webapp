@@ -100,7 +100,6 @@ source "googlecompute" "ubuntu" {
     course      = "csye6225"
   }
 }
-
 # --------------------------------------------------------------------------- #
 # Build
 # --------------------------------------------------------------------------- #
@@ -133,7 +132,7 @@ build {
       "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
 
       # Install Node.js 18
-      "curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -",
+      "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -",
       "sudo apt-get install -y nodejs",
 
       # Install PostgreSQL
@@ -146,6 +145,7 @@ build {
       # Create group and user csye6225 with no login shell
       "sudo groupadd --force csye6225",
       "sudo useradd --system --no-create-home --shell /usr/sbin/nologin --gid csye6225 csye6225 || true",
+
       # Create app directory
       "sudo mkdir -p /opt/csye6225",
 
