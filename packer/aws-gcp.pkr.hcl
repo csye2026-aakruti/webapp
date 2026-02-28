@@ -15,7 +15,7 @@ packer {
 # Variables
 # --------------------------------------------------------------------------- #
 
-variable "aws_region" {
+variable "aws_region_1" {
   type    = string
   default = "us-east-1"
 }
