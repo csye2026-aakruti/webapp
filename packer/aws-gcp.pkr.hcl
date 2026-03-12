@@ -94,6 +94,7 @@ source "googlecompute" "ubuntu" {
   ssh_username        = "packer"
   disk_size           = 20
   disk_type           = "pd-standard"
+  credentials_file    = "/tmp/gcp_key.json"
 
   image_labels = {
     environment = "dev"
