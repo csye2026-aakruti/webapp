@@ -34,6 +34,9 @@ jobs:
 
       - name: Create dummy webapp.zip for validation
         run: touch webapp.zip
+      
+      - name: Create dummy GCP key file for validation
+        run: echo '{"type":"service_account"}' > /tmp/gcp_key.json
 
       - name: Validate Packer template
         run: packer validate packer/aws-gcp.pkr.hcl
