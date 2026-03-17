@@ -90,22 +90,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-      
-      - name: Write GCP key file for Packer
-        run: echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > /tmp/gcp_key.json
-
-      - name: Setup gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
       - name: Build machine images
         run: |
           packer build \
+            -only="csye6225-webapp.amazon-ebs.ubuntu" \
             -var "aws_region=${{ secrets.AWS_REGION }}" \
             -var "aws_demo_account_id=${{ secrets.AWS_DEMO_ACCOUNT_ID }}" \
             -var "gcp_dev_project_id=${{ secrets.GCP_PROJECT_ID }}" \
