@@ -130,8 +130,8 @@ build {
       # Wait for apt to be available
       "sudo cloud-init status --wait || true",
       "sudo apt-get update -y",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
-
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --fix-missing",
+      
       # Install Node.js 18
       "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -",
       "sudo apt-get install -y nodejs",
