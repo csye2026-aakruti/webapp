@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const StatsD = require('node-statsd');
 
 @Injectable()
-export class MetricsService {
+export class MetricsService implements OnModuleDestroy{
   private client: InstanceType<typeof StatsD>;
 
   constructor() {
@@ -28,5 +28,9 @@ export class MetricsService {
 
   timeS3Operation(operationName: string, durationMs: number) {
     this.client.timing(`s3.${operationName}.duration`, durationMs);
+  }
+
+  onModuleDestroy() {
+    this.client.close();
   }
 }
