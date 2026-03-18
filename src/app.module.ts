@@ -11,6 +11,8 @@ import { HealthCheck } from './health/health-check.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MetadataModule } from './metadata/metadata.module';
 import { CoursesModule } from './courses/courses.module';
+import { AppLogger } from './logger/logger.service';
+import { MetricsService } from './logger/metrics.service';
 
 @Module({
   imports: [
@@ -33,7 +35,7 @@ import { CoursesModule } from './courses/courses.module';
     CoursesModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService, HealthService],
+  providers: [AppService, HealthService,AppLogger,MetricsService],
 })
 export class AppModule {}
  

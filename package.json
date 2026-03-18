@@ -31,11 +31,13 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "multer": "^2.0.2",
+    "node-statsd": "^0.1.1",
     "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.28",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -48,6 +50,7 @@
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
+    "@types/node-statsd": "^0.1.7",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^10.0.0",
     "dotenv": "^17.2.3",

@@ -5,6 +5,8 @@ import { CoursesService } from './courses.service';
 import { Course } from './course.entity';
 import { Syllabus } from './syllabus.entity';
 import { UsersModule } from '../users/users.module';
+import { AppLogger } from '../logger/logger.service';
+import { MetricsService } from '../logger/metrics.service';
 
 @Module({
   imports: [
@@ -12,6 +14,6 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [CoursesController],
-  providers: [CoursesService],
+  providers: [CoursesService,AppLogger,MetricsService],
 })
 export class CoursesModule {}
