@@ -123,6 +123,12 @@ build {
     destination = "/tmp/webapp.service"
   }
 
+  # Copy CloudWatch agent config
+  provisioner "file" {
+    source      = "packer/cloudwatch/cloudwatch-config.json"
+    destination = "/tmp/cloudwatch-config.json"
+  }
+
   # Run setup script
   provisioner "shell" {
     inline = [
@@ -172,6 +178,9 @@ build {
       "wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb",
       "sudo dpkg -i /tmp/amazon-cloudwatch-agent.deb",
       "sudo systemctl enable amazon-cloudwatch-agent",
+
+      # Copy CloudWatch config to correct location
+      "sudo mv /tmp/cloudwatch-config.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json",
     ]
   }
 
