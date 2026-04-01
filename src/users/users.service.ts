@@ -1,8 +1,12 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import { randomUUID } from 'crypto';
+
+const sns = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 @Injectable()
 export class UsersService {
@@ -11,37 +15,44 @@ export class UsersService {
     private usersRepository: Repository<User>,
   ) {}
 
-  // Create a new user
   async create(userData: Partial<User>): Promise<User> {
     const { username, password, first_name, last_name } = userData;
 
-    // Validate required fields
     if (!username || !password || !first_name || !last_name) {
       throw new BadRequestException('All fields are required');
     }
 
-    // Check if the username already exists
     const existingUser = await this.usersRepository.findOneBy({ username });
     if (existingUser) {
       throw new BadRequestException('Username already exists');
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verification_token = randomUUID();
+    const token_expires_at = new Date(Date.now() + 60 * 1000); // 1 minute
 
-    // Create the new user
     const newUser = this.usersRepository.create({
       username,
-      password: hashedPassword,   // ✅ store bcrypt hash
+      password: hashedPassword,
       first_name,
       last_name,
-      account_created: new Date(),
-      account_updated: new Date(),
+      verified: false,
+      verification_token,
+      token_expires_at,
     });
-    
+
     const saved = await this.usersRepository.save(newUser);
-    
-    // dont return password
+
+    // Publish to SNS
+    await sns.send(new PublishCommand({
+      TopicArn: process.env.SNS_TOPIC_ARN,
+      Message: JSON.stringify({
+        email: saved.username,
+        firstName: saved.first_name,
+        token: saved.verification_token,
+      }),
+    }));
+
     return {
       id: saved.id,
       username: saved.username,
@@ -52,7 +63,32 @@ export class UsersService {
     } as any;
   }
 
-  // Fetch a user by ID
+  async verifyEmail(email: string, token: string): Promise<void> {
+    const user = await this.usersRepository.findOneBy({ username: email });
+
+    if (!user) {
+      throw new BadRequestException('Invalid verification link');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    if (user.verification_token !== token) {
+      throw new BadRequestException('Invalid token');
+    }
+
+    if (!user.token_expires_at || new Date() > user.token_expires_at) {
+      throw new BadRequestException('Verification link has expired');
+    }
+
+    await this.usersRepository.update(user.id, {
+      verified: true,
+      verification_token: null,
+      token_expires_at: null,
+    });
+  }
+
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOneBy({ id });
     if (!user) {
@@ -61,7 +97,6 @@ export class UsersService {
     return user;
   }
 
-  // Fetch a user by username
   async findOneByUsername(username: string): Promise<User> {
     const user = await this.usersRepository.findOneBy({ username });
     if (!user) {
@@ -75,30 +110,28 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException(`User with username ${username} not found`);
     }
-    return user; // includes password hash from DB
+    return user;
   }
 
-  // Update user information
   async update(id: string, updateData: Partial<User>): Promise<void> {
-    const user = await this.findOne(id); // Ensure the user exists
+    const user = await this.findOne(id);
 
-    // Validate allowed fields
+    if (!user.verified) {
+      throw new ForbiddenException('Email address has not been verified');
+    }
+
     const allowedFields = ['first_name', 'last_name', 'password'];
     const invalidFields = Object.keys(updateData).filter(
       (key) => !allowedFields.includes(key),
     );
     if (invalidFields.length > 0) {
-      throw new BadRequestException(
-        `Invalid fields: ${invalidFields.join(', ')}`,
-      );
+      throw new BadRequestException(`Invalid fields: ${invalidFields.join(', ')}`);
     }
 
-    // Hash the password if it's being updated
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
-    // Update the user and set the account_updated timestamp
     await this.usersRepository.update(id, {
       ...updateData,
       account_updated: new Date(),
