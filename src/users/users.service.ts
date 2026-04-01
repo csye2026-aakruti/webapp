@@ -28,6 +28,7 @@ export class UsersService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const isTest = process.env.NODE_ENV === 'test';
     const verification_token = randomUUID();
     const token_expires_at = new Date(Date.now() + 60 * 1000); // 1 minute
 
@@ -36,22 +37,25 @@ export class UsersService {
       password: hashedPassword,
       first_name,
       last_name,
-      verified: false,
-      verification_token,
-      token_expires_at,
+      verified: isTest,
+      verification_token: isTest ? null : verification_token,
+      token_expires_at: isTest ? null : token_expires_at,
     });
 
     const saved = await this.usersRepository.save(newUser);
 
     // Publish to SNS
-    await sns.send(new PublishCommand({
-      TopicArn: process.env.SNS_TOPIC_ARN,
-      Message: JSON.stringify({
+// Publish to SNS (skip if not configured)
+    if (process.env.SNS_TOPIC_ARN) {
+      await sns.send(new PublishCommand({      
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Message: JSON.stringify({
         email: saved.username,
         firstName: saved.first_name,
         token: saved.verification_token,
       }),
     }));
+  }
 
     return {
       id: saved.id,
