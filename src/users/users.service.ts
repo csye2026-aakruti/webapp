@@ -10,10 +10,14 @@ const sns = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 @Injectable()
 export class UsersService {
+  private sns: SNSClient;
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
-  ) {}
+  ) {
+    this.sns = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
+  }
 
   async create(userData: Partial<User>): Promise<User> {
     const { username, password, first_name, last_name } = userData;
