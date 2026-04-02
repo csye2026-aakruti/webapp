@@ -26,7 +26,7 @@ export class User {
   @Column({ default: false })
   verified: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   verification_token: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
