@@ -7,56 +7,55 @@ import {
   UseGuards,
   Req,
   BadRequestException,
+  ForbiddenException,
   Param,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './user.entity';
 import type { Request } from 'express';
 
-// Ensure the extended type is included
 declare namespace Express {
   export interface Request {
-    user?: { id: string }; // Extend the Request type to include the user property
+    user?: { id: string };
   }
 }
 
 import { AuthGuard } from '../auth/auth.guard';
 
-@Controller('v1/user')
+@Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Create a new user
-  @Post()
+  @Post('v1/user')
   async create(@Body() createUserDto: CreateUserDto): Promise<User> {
     return this.usersService.create(createUserDto);
   }
 
-  // Get user information (self)
+  @Get('v1/user/self')
   @UseGuards(AuthGuard)
-  @Get('self')
   async getSelf(@Req() req: Request): Promise<User> {
-    const userId = req.user?.id; // Ensure `user` is optional and safely accessed
+    const userId = req.user?.id;
     if (!userId) {
       throw new BadRequestException('User ID not found in request');
     }
 
     const user = await this.usersService.findOne(userId);
-    if (!user) {
-      throw new BadRequestException('User not found');
+
+    if (!user.verified) {
+      throw new ForbiddenException('Email address has not been verified');
     }
 
-    delete (user as Partial<User>).password; // Ensure password is not returned
+    delete (user as Partial<User>).password;
     return user;
   }
 
-  // Update user information (self)
+  @Put('v1/user/self')
   @UseGuards(AuthGuard)
-  @Put('self')
-  @HttpCode(HttpStatus.NO_CONTENT)   // 👈 THIS IS THE KEY LINE
+  @HttpCode(HttpStatus.NO_CONTENT)
   async updateSelf(
     @Req() req: Request,
     @Body() updateData: Partial<User>,
@@ -65,14 +64,23 @@ export class UsersController {
     if (!userId) {
       throw new BadRequestException('User ID not found in request');
     }
-  
+
     await this.usersService.update(userId, updateData);
-  
-    return; // 👈 explicitly return nothing
   }
 
- 
-  @Get(':id')
+  @Get('v1/validateEmail')
+  async validateEmail(
+    @Query('email') email: string,
+    @Query('token') token: string,
+  ): Promise<{ message: string }> {
+    if (!email || !token) {
+      throw new BadRequestException('Email and token are required');
+    }
+    await this.usersService.verifyEmail(email, token);
+    return { message: 'Email verified successfully' };
+  }
+
+  @Get('v1/user/:id')
   findOne(@Param('id') id: string): Promise<User | null> {
     return this.usersService.findOne(id);
   }

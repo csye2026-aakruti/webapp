@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('users') // Table name
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -23,6 +23,12 @@ export class User {
   @UpdateDateColumn({ type: 'timestamp' })
   account_updated: Date;
 
-  @Column({ default: true })
+  @Column({ default: false })
   verified: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  verification_token: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  token_expires_at: Date | null;
 }
