@@ -1,15 +1,12 @@
 name: Packer CD
-
 on:
   push:
     branches:
       - main
-
 jobs:
   test:
     name: Run E2E Tests
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:14
@@ -24,7 +21,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
     env:
       DB_HOST: localhost
       DB_PORT: 5432
@@ -33,27 +29,24 @@ jobs:
       DB_NAME: webapp_test
       JWT_SECRET: testsecret
       NODE_ENV: test
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run E2E tests
         run: npm run test:e2e
 
   build-and-pack:
     name: Build App and Create Machine Images
     runs-on: ubuntu-latest
-    needs: test  # Only runs if test job passes
-
+    needs: test
+    outputs:
+      ami_id: ${{ steps.get-ami.outputs.ami_id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -70,8 +63,7 @@ jobs:
         run: npm run build
 
       - name: Create webapp.zip
-        run: |
-          zip -r webapp.zip dist/ package.json package-lock.json
+        run: zip -r webapp.zip dist/ package.json package-lock.json
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@main
@@ -83,11 +75,11 @@ jobs:
           PACKER_GITHUB_API_TOKEN: ${{ secrets.PACKER_GITHUB_API_TOKEN }}
         run: packer init packer/aws-gcp.pkr.hcl
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (DEV)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.DEV_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEV_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Build machine images
@@ -95,7 +87,65 @@ jobs:
           packer build \
             -only="csye6225-webapp.amazon-ebs.ubuntu" \
             -var "aws_region=${{ secrets.AWS_REGION }}" \
-            -var "aws_demo_account_id=${{ secrets.AWS_DEMO_ACCOUNT_ID }}" \
+            -var "aws_demo_account_id=${{ secrets.DEMO_AWS_ACCOUNT_ID }}" \
             -var "gcp_dev_project_id=${{ secrets.GCP_PROJECT_ID }}" \
             -var "gcp_demo_project_id=csye6225-demo-487215" \
-            packer/aws-gcp.pkr.hcl
+            packer/aws-gcp.pkr.hcl 2>&1 | tee packer-output.txt
+
+      - name: Get AMI ID
+        id: get-ami
+        run: |
+          AMI_ID=$(grep -o 'ami-[a-z0-9]*' packer-output.txt | tail -1)
+          echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+          echo "AMI ID: $AMI_ID"
+
+      - name: Configure AWS credentials (DEMO)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.DEMO_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEMO_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Create new Launch Template version
+        run: |
+          aws ec2 create-launch-template-version \
+            --launch-template-name csye6225_asg \
+            --source-version '$Latest' \
+            --launch-template-data "{\"ImageId\":\"${{ steps.get-ami.outputs.ami_id }}\"}"
+
+      - name: Update ASG to use latest Launch Template
+        run: |
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name csye6225-demo-v1-asg \
+            --launch-template "LaunchTemplateName=csye6225_asg,Version=\$Latest"
+
+      - name: Start instance refresh
+        id: start-refresh
+        run: |
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name csye6225-demo-v1-asg \
+            --preferences '{"MinHealthyPercentage": 50}' \
+            --query 'InstanceRefreshId' \
+            --output text)
+          echo "refresh_id=$REFRESH_ID" >> $GITHUB_OUTPUT
+          echo "Instance refresh started: $REFRESH_ID"
+
+      - name: Wait for instance refresh to complete
+        run: |
+          REFRESH_ID="${{ steps.start-refresh.outputs.refresh_id }}"
+          echo "Waiting for instance refresh $REFRESH_ID to complete..."
+          while true; do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name csye6225-demo-v1-asg \
+              --query "InstanceRefreshes[?InstanceRefreshId=='$REFRESH_ID'].Status" \
+              --output text)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "Successful" ]; then
+              echo "Instance refresh completed successfully"
+              exit 0
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then
+              echo "Instance refresh failed with status: $STATUS"
+              exit 1
+            fi
+            sleep 30
+          done
