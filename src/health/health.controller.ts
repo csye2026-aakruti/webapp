@@ -4,7 +4,7 @@ import { HealthService } from './health.service';
 import { AppLogger } from '../logger/logger.service';
 import { MetricsService } from '../logger/metrics.service';
 
-@Controller('healthz')
+@Controller()
 export class HealthController {
   constructor(
     private readonly healthService: HealthService,
@@ -12,7 +12,8 @@ export class HealthController {
     private readonly metrics: MetricsService,
   ) {}
 
-  @All()
+  @All('healthz')
+  @All('healthz1234')
   async handleAll(@Req() req: express.Request, @Res() res: express.Response) {
     const start = Date.now();
 
