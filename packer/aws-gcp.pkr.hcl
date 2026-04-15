@@ -182,7 +182,10 @@ build {
       # Copy CloudWatch config to correct location
       "sudo mv /tmp/cloudwatch-config.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json",
       # Install AWS CLI
-      "sudo apt-get install -y awscli",
+      "curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o '/tmp/awscliv2.zip'",
+      "sudo unzip /tmp/awscliv2.zip -d /tmp",
+      "sudo /tmp/aws/install",
+      "aws --version",
     ]
   }
 
