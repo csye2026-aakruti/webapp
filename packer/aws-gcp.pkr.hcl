@@ -194,4 +194,4 @@ build {
       "gcloud projects add-iam-policy-binding ${var.gcp_dev_project_id} --member=serviceAccount:$(gcloud projects describe ${var.gcp_demo_project_id} --format='value(projectNumber)')@cloudservices.gserviceaccount.com --role=roles/compute.imageUser"
     ]
   }
-}
+} # AMI rebuild Wed Apr 15 13:13:53 EDT 2026
